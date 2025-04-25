@@ -1,17 +1,22 @@
 import readline from "readline";
 import { Ollama } from "ollama";
+import { log } from "console";
+import { spawn } from "child_process";
 
 const ollama = new Ollama();
+const modelI = {
+  model: ''
+};
 
 const colors = {
-    reset: '\x1b[0m',
-    blue: '\x1b[34m',
-    cyan: '\x1b[36m',
-    green: '\x1b[32m',
-    yellow: '\x1b[33m',
-    red: '\x1b[31m',
-    bold: '\x1b[1m'
-  };
+  reset: '\x1b[0m',
+  blue: '\x1b[34m',
+  cyan: '\x1b[36m',
+  green: '\x1b[32m',
+  yellow: '\x1b[33m',
+  red: '\x1b[31m',
+  bold: '\x1b[1m'
+};
   
 
 const showBanner = () => {
@@ -20,7 +25,7 @@ const showBanner = () => {
     ${colors.cyan}Bem-vindo! Faça uma pergunta para começar a conversa.
     Digite ${colors.yellow}'ajuda'${colors.cyan} para ver os comandos disponíveis.
     Digite ${colors.yellow}'sair'${colors.cyan} para encerrar o programa.${colors.reset}
-`);
+  `);
 };
 
 const readlineConsole = readline.createInterface({
@@ -42,9 +47,13 @@ function stopLoading(loadingInterval) {
   process.stdout.write('\r                      \r');
 }
 
+function setModel(model) {
+  modelI.model = selectModel(model);
+}
+
 async function getAI(prompt) {
   const response = await ollama.chat({
-    model: 'qwen2.5:1.5b',
+    model: modelI.model,
     messages: [
       {
         role: 'user',
@@ -69,6 +78,19 @@ function getFallbackResponse(prompt) {
   return responses[Math.floor(Math.random() * responses.length)];
 }
 
+function selectModel(typeModel) {
+  switch (typeModel) {
+    case '1':
+      return 'qwen2.5:1.5b'
+    case '2':
+      return 'qwen2.5:1.5b'
+    default:
+      console.log(`${colors.yellow}Modelo não encontrado. Por favor, escolha um modelo válido.${colors.reset}`);
+      modelI.model = '';
+      startConversation();
+      break;
+  }
+}
 
 function processCommand(command) {
   switch(command.toLowerCase()) {
@@ -122,11 +144,39 @@ function processCommand(command) {
 
 function startConversation() {
   showBanner();
-  
   let consecutiveFailures = 0;
   let fallbackMode = false;
   
   function askQuestion() {
+    if (modelI.model === '') {
+      const models = []
+
+      const childProcess = spawn('ollama', ['list'], {shell: true}).stdout.on('data', (data) => {
+        const output = data.toString('utf-8')
+        .trim()
+        .split('\n')
+        .filter(line => line && !line.includes('NAME'))
+        .map(line => line.split(/\s+/)[0]);
+
+        models.push(...output);
+
+      });
+
+      childProcess.on('close', () => {
+        console.log('\n');
+        models.forEach((line, index) => {
+            console.log(`${colors.yellow}${index + 1}${colors.reset} - ${line}`);
+        });
+        console.log(`${colors.green}Digite aqui:${colors.reset}`);
+      });
+      
+      readlineConsole.question(`${colors.bold}${colors.green}Digite o modelo que você que utilizar: ${colors.reset}`, async (input) => {
+        setModel(input);
+        askQuestion();
+        return;
+      })
+    }
+
     readlineConsole.question(`${colors.bold}${colors.green}Você: ${colors.reset}`, async (input) => {
 
       if (processCommand(input)) {
