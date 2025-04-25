@@ -179,5 +179,4 @@ function startConversation() {
   askQuestion();
 }
 
-// Inicia o programa
 startConversation();
